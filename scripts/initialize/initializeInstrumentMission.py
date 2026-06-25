@@ -42,7 +42,8 @@ instrumentAbbrev = ['GPCTD',
                     'Ecopuck',
                     'LEGATO',
                     'CODA',
-                    'Minifluo'
+                    'Minifluo',
+                    'Tridente'
                     # 'PAM' # omitting PAM for now (2023 01 24) - don't have instrument information in database
                     ]
 instrumentPk = []
@@ -99,6 +100,9 @@ for d in df.itertuples():
                 warmUpName = 'GPCTD' + 'warmup'
             # LEGATO CODA warm up is same as LEGATO
             elif i == 'CODA':
+                warmUpName = 'LEGATO' + 'warmup'
+            # Tridente warm up is same as LEGATO
+            elif i == 'Tridente':
                 warmUpName = 'LEGATO' + 'warmup'
             else :
                 warmUpName = i + 'warmup'
