@@ -8,7 +8,7 @@ def readMissionFile():
     file = io.FileIO(file=r".\initializationData\GliderMission.xlsx", mode="r")
     dataframe = pd.read_excel(file, skiprows=1)
     # rename some columns
-    dataframe = dataframe.rename(columns={"Unnamed: 0": "annualMissionIndex",
+    dataframe = dataframe.rename(columns={"Unnamed: 1": "annualMissionIndex",
                                           "Mission #": "missionNumber",
                                           "# days": "numberOfDays",
                                           "# yo": "numberOfYos",

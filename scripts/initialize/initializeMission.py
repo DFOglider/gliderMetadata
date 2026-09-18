@@ -252,7 +252,7 @@ for row in df.itertuples():
                             mission_platformNavFirmware= models.PlatformNavigationFirmware.objects.get(pk=getattr(row, 'platformNavigationFirmwarePk')),
                             mission_platformBattery=None if pd.isna(getattr(row, 'platformBatteryPk')) else models.PlatformBattery.objects.get(pk=getattr(row, 'platformBatteryPk')),
                             mission_platformRelease=None if pd.isna(getattr(row, 'platformReleasePk')) else models.PlatformRelease.objects.get(pk=getattr(row, 'platformReleasePk')),
-                            mission_platformPayload=models.PlatformPayload.objects.get(pk=getattr(row, 'platformPayloadPk')),
+                            mission_platformPayload=None if pd.isna(getattr(row, 'platformPayloadPk')) else models.PlatformPayload.objects.get(pk=getattr(row, 'platformPayloadPk')),
                             mission_platformPayloadFirmware=None if pd.isna(getattr(row, 'platformPayloadFirmwarePk')) else models.PlatformPayloadFirmware.objects.get(pk=getattr(row, 'platformPayloadFirmwarePk')),
                             mission_deploymentDate=getattr(row, 'Deploymentdate'),
                             mission_recoveryDate=getattr(row, 'Recoverydate'),

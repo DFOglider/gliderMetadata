@@ -23,7 +23,7 @@ df = rmf.readMissionFile()
 
 # Only missions that don't have a defined type (as of 20250106 only other mission type is 'Overnight')
 #   so subset df to those missions
-df = df[[not(x in ['HL', 'BBL', 'PAM EB']) for x in df['Missiontype']]]
+df = df[[not(x in ['HL', 'BBL', 'PAM EB', 'HL part']) for x in df['Missiontype']]]
 
 # get pk value of the platform to find mission pk
 # mission_platformName
