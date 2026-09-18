@@ -267,12 +267,7 @@ version of `fn_readMissionFile.py` before debugging from scratch.
 
 Tracked here so they are not rediscovered each mission. Do this work on a branch.
 
-- **Spreadsheet reader is fragile.** `fn_readMissionFile.py` is shared by most of
-  the initialize scripts, so hardening it once fixes every caller. Wanted:
-  explicit dtype handling, validation that the final row is complete, and a clear
-  error when an expected column is absent. A silent misparse writes wrong
-  metadata to the database instead of failing loudly — this is the highest-value
-  fix.
+
 - **Summary variants duplicate code.** Better as one script taking a `--region`
   argument with the boilerplate text in a data file.
 - **Browns Bank summary variant** still needs writing.
