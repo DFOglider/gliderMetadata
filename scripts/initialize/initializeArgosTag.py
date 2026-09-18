@@ -1,6 +1,17 @@
 import io
 import pandas as pd
-from gliderMetadataApp import models
+import os
+import sys
+from pathlib import Path
+
+ROOT = next(p for p in Path(__file__).resolve().parents if (p / "manage.py").exists())
+sys.path.insert(0, str(ROOT))
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "gliderMetadataDjango.settings")
+
+import django
+django.setup()
+
+from gliderMetadataApp import models   # everything Django must come after django.setup()
 
 def initiate_ArgosTagPTT():
     file = io.FileIO(file=r".\initializationData\argosTag\argosTagPTT.csv", mode="r")

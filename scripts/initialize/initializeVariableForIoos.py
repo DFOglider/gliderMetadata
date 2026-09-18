@@ -1,6 +1,17 @@
 import io
 import re
 import pandas as pd
+import os
+import sys
+from pathlib import Path
+
+ROOT = next(p for p in Path(__file__).resolve().parents if (p / "manage.py").exists())
+sys.path.insert(0, str(ROOT))
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "gliderMetadataDjango.settings")
+
+import django
+django.setup()
+
 from gliderMetadataApp import models
 
 def initiateVariableWithIOOS():
