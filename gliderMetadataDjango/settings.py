@@ -129,3 +129,5 @@ GRAPH_MODELS ={
 'all_applications': True,
 'graph_models': True,
 }
+
+DEPLOYMENT_YAML_DIR = r"C:\Users\ogradye\Documents\deploymentYaml"
