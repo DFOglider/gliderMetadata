@@ -141,6 +141,10 @@ EXCEL_EPOCH = "1899-12-30"
 
 UNNAMED_PATTERN = re.compile(r"^unnamed:?\d*$")
 PANDAS_DUPLICATE_SUFFIX = re.compile(r"\.\d+$")
+# Which blank-header column is the mission index, 0-based. The original code
+# hardcoded "Unnamed: 1". Used only to break a tie when content cannot
+# distinguish the candidates.
+ANNUAL_MISSION_INDEX_POSITION = 1
 
 
 class MissionFileError(Exception):
@@ -204,73 +208,141 @@ def legacyClean(name):
     text = re.sub(r"[/()]", "", text)
     return text
 
+def chooseAnnualMissionIndex(dataframe, unnamedPositions, problems):
+    """Pick which blank-header column holds the annual mission index.
 
-def resolveColumns(rawColumns, problems):
+    Recent spreadsheets have two unnamed numeric columns: a running total of
+    all missions, and an annual tally that resets each January. They are
+    distinguished by that reset — the annual tally decreases at least once,
+    the running total never does.
+    """
+    if not unnamedPositions:
+        return None
+    if len(unnamedPositions) == 1:
+        return unnamedPositions[0]
+
+    scored = []
+    for position in unnamedPositions:
+        numeric = pd.to_numeric(dataframe.iloc[:, position], errors="coerce")
+        valid = numeric.dropna()
+
+        if valid.empty:
+            scored.append((-1.0, position, "empty"))
+            continue
+
+        resets = int((valid.diff() < 0).sum())
+        score = 0.0
+        notes = []
+
+        if resets:
+            score += 10.0
+            notes.append(f"{resets} reset(s)")
+        else:
+            notes.append("never decreases")
+
+        # An annual tally stays small; a running total grows without bound.
+        score += 1.0 / (1.0 + valid.max() / 100.0)
+        notes.append(f"max {valid.max():g}")
+
+        if position == ANNUAL_MISSION_INDEX_POSITION:
+            score += 0.25
+            notes.append("expected position")
+
+        scored.append((score, position, ", ".join(notes)))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    best = scored[0][1]
+
+    detail = "; ".join(
+        f"column {position + 1}: {notes}" for _, position, notes in scored
+    )
+    problems.append(
+        f"{len(unnamedPositions)} columns have no header. Using column "
+        f"{best + 1} as annualMissionIndex ({detail}). If that is wrong, set "
+        f"ANNUAL_MISSION_INDEX_POSITION in this file."
+    )
+
+    # A spreadsheet spanning several years with no reset means the chosen
+    # column is probably the running total, not the annual tally.
+    chosenValues = pd.to_numeric(dataframe.iloc[:, best], errors="coerce").dropna()
+    if not chosenValues.empty and (chosenValues.diff() < 0).sum() == 0:
+        problems.append(
+            f"column {best + 1} never resets, so it may be the running total "
+            f"rather than the annual tally. Check the choice above."
+        )
+
+    return best
+
+def resolveColumns(dataframe, problems):
     """Map raw headers to canonical names, reporting how each was matched.
 
     Returns (resolvedNames, report) where report is a list of
-    (rawName, resolvedName, how) for the diagnostic output.
+    (rawName, resolvedName, how).
     """
-    resolved = []
-    report = []
+    rawColumns = list(dataframe.columns)
+    resolved = [None] * len(rawColumns)
+    report = [None] * len(rawColumns)
     usedCanonical = {}
-    unnamedSeen = 0
+    unnamedPositions = []
 
+    # Pass one: columns that have a header.
     for position, raw in enumerate(rawColumns):
         rawText = str(raw)
 
         if PANDAS_DUPLICATE_SUFFIX.search(rawText):
             problems.append(
-                f"column {position + 1} ({rawText!r}) looks like a duplicate header; "
-                f"pandas renamed it. Check for two columns with the same title."
+                f"column {position + 1} ({rawText!r}) looks like a duplicate "
+                f"header; pandas renamed it. Check for two columns with the "
+                f"same title."
             )
 
         key = matchKey(rawText)
 
-        # Blank header cells become 'Unnamed: N'. The first one is the
-        # unlabelled mission index column.
         if UNNAMED_PATTERN.match(key):
-            unnamedSeen += 1
-            if unnamedSeen == 1 and "annualMissionIndex" not in usedCanonical:
-                resolved.append("annualMissionIndex")
-                usedCanonical["annualMissionIndex"] = position
-                report.append((rawText, "annualMissionIndex", "blank header"))
-                continue
-
-            name = legacyClean(rawText)
-            resolved.append(name)
-            report.append((rawText, name, "blank header, unmatched"))
-            problems.append(
-                f"column {position + 1} has no header. If a column was inserted, "
-                f"the mission index column may have moved."
-            )
+            unnamedPositions.append(position)
             continue
 
         canonical = ALIAS_LOOKUP.get(key)
 
         if canonical is None:
             name = legacyClean(rawText)
-            resolved.append(name)
-            report.append((rawText, name, "no canonical name"))
+            resolved[position] = name
+            report[position] = (rawText, name, "no canonical name")
             continue
 
         if canonical in usedCanonical:
             problems.append(
-                f"columns {usedCanonical[canonical] + 1} and {position + 1} both "
-                f"resolve to {canonical}. Using the first."
+                f"columns {usedCanonical[canonical] + 1} and {position + 1} "
+                f"both resolve to {canonical}. Using the first."
             )
             name = legacyClean(rawText) + "_duplicate"
-            resolved.append(name)
-            report.append((rawText, name, f"duplicate of {canonical}"))
+            resolved[position] = name
+            report[position] = (rawText, name, f"duplicate of {canonical}")
             continue
 
         how = "exact" if matchKey(canonical) == key else "alias"
-        resolved.append(canonical)
+        resolved[position] = canonical
         usedCanonical[canonical] = position
-        report.append((rawText, canonical, how))
+        report[position] = (rawText, canonical, how)
+
+    # Pass two: blank headers, decided on content.
+    chosen = None
+    if "annualMissionIndex" not in usedCanonical:
+        chosen = chooseAnnualMissionIndex(dataframe, unnamedPositions, problems)
+
+    for position in unnamedPositions:
+        rawText = str(rawColumns[position])
+
+        if position == chosen:
+            resolved[position] = "annualMissionIndex"
+            usedCanonical["annualMissionIndex"] = position
+            report[position] = (rawText, "annualMissionIndex", "blank header")
+        else:
+            name = legacyClean(rawText)
+            resolved[position] = name
+            report[position] = (rawText, name, "blank header, unused")
 
     return resolved, report
-
 
 # --- Header row detection --------------------------------------------------
 
@@ -537,8 +609,9 @@ def readMissionFile(path=None, strict=False, verbose=True, returnReport=False):
         raise MissionFileError(f"Could not read {resolved}: {exc}") from exc
 
     rawColumns = list(dataframe.columns)
-    dataframe.columns, report = resolveColumns(rawColumns, problems)
-
+    resolvedNames, report = resolveColumns(dataframe, problems)
+    dataframe.columns = resolvedNames
+    
     missingRequired = [c for c in REQUIRED_COLUMNS if c not in dataframe.columns]
     if missingRequired:
         headerList = "\n  ".join(f"{raw!r} -> {name}" for raw, name, _ in report)
