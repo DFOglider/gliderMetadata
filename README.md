@@ -48,6 +48,15 @@ If PowerShell blocks the activate script, allow it once for your user:
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
+#### YAML path
+
+Set the deployment YAML output directory, in `gliderMetadataDjango\settings.py`:
+
+    DEPLOYMENT_YAML_DIR = r"C:\Users\<user>\Documents\GitHub\deploymentYaml"
+
+This is a machine-specific path in a tracked file, so if you would rather not
+commit it, set the `GLIDER_DEPLOYMENT_YAML_DIR` environment variable instead.
+
 ### Every session
 
 ```powershell
@@ -190,6 +199,22 @@ check wording with Melany and Clark before adding a new region.
   there is a new mission type. Its overnight-mission warning can be ignored — it
   refers to an early mission that is not of interest.
 
+### 5. Deployment YAML
+
+1. Run `python manage.py createDeploymentYamlForGithub`, or run the script
+   directly as `python scripts\createDeploymentYamlForGithub.py` to get the
+   `--dry-run`, `--latest`, `--cruise` and `--output` options. The output
+   directory is no longer hardcoded — it is taken from `--output`, then the
+   `GLIDER_DEPLOYMENT_YAML_DIR` environment variable, then
+   `DEPLOYMENT_YAML_DIR` in `settings.py`, then a `deploymentYaml` directory
+   beside this repository. Set one of these once before the first run. Missions
+   whose cruise number is not in `PREFIX_GLIDER_NNN` form are reported and
+   skipped rather than written under a wrong filename; start with `--dry-run`
+   to see that list.
+
+   If you want to only see failure output, or save output for searching, use `python scripts\createDeploymentYamlForGithub.py 1>chatter.txt 2>failures.txt`
+2. Commit and push to the `deploymentYaml` GitHub repository.
+3. On the server, pull `deploymentYaml`.
 
 ### 6. Verify
 
